@@ -125,7 +125,7 @@ jobs:
             script: |
                 const release_id = ${{ steps.create_release.outputs.release_id }};
                 const asset_id = ${{ steps.upload_asset.outputs.asset_id }};
-                const checksum = process.env.CHECKSUM;
+                const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
     
                 await github.rest.repos.updateRelease({
                   owner: context.repo.owner,
