@@ -91,7 +91,7 @@ jobs:
           unityVersion: 6000.0.29f1
           projectPath: vendor
           buildMethod: BuildScript.UniversaliOS
-          cacheUnityInstallationOnMac: true
+          # cacheUnityInstallationOnMac: true
 
       - name: Build UnityFramework for iOS Device
         run: |
@@ -127,7 +127,7 @@ jobs:
       - name: Code sign
         run: |
             cd vendor/Build/archives && \
-            codesign --timestamp -s "Apple" "${XCFRAMEWORK_PATH}"
+            codesign --timestamp -s "Apple" "UnityFramework.xcframework"
       
       - name: zip XCFramework
         run: |

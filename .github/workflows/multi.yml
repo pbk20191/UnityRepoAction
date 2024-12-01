@@ -139,7 +139,7 @@ jobs:
         - name: Code sign
           run: |
             cd vendor/Build/archives && \
-            codesign --timestamp -s "Apple" "${XCFRAMEWORK_PATH}"
+            codesign --timestamp -s "Apple" "UnityFramework.xcframework"
         
         - name: zip XCFramework
           run: |
