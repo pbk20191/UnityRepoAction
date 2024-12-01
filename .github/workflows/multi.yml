@@ -16,7 +16,11 @@ on:
         tag_name:
           description: "The tag name for the release"
           required: true
-          
+
+env:
+    IOS_DEVICE_PROJECT_PATH: vendor/Build/iOS_Device
+    IOS_SIMULATOR_PROJECT_PATH: vendor/Build/iOS_Simulator
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -43,8 +47,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            vendor/Build/iOS_Device
-            vendor/Build/iOS_Simulator
+            ${{ env.IOS_DEVICE_PROJECT_PATH }}
+            ${{ env.IOS_SIMULATOR_PROJECT_PATH }}
           key: iOS-Unity-Build
 
       - uses: game-ci/unity-builder@v4
@@ -64,8 +68,6 @@ jobs:
       runs-on: macos-15
       needs: build_project
       env:
-        IOS_DEVICE_PROJECT_PATH: vendor/Build/iOS_Device
-        IOS_SIMULATOR_PROJECT_PATH: vendor/Build/iOS_Simulator
         ARCHIVE_PATH: vendor/Build/archives
         XCFRAMEWORK_NAME: UnityFramework.xcframework
         ARTIFACT_NAME: UnityFramework-iOS-Release.zip
@@ -104,8 +106,8 @@ jobs:
           uses: actions/cache@v4
           with:
             path: |
-              vendor/Build/iOS_Device
-              vendor/Build/iOS_Simulator
+                ${{ env.IOS_DEVICE_PROJECT_PATH }}
+                ${{ env.IOS_SIMULATOR_PROJECT_PATH }}
             key: iOS-Unity-Build
 
         - name: Build UnityFramework for iOS Device
@@ -143,7 +145,7 @@ jobs:
             -archive "${SIMULATOR_ARCHIVE_PATH}" -framework UnityFramework.framework \
             -output "${XCFRAMEWORK_PATH}"
           env:
-            XCFRAMEWORK_PATH: ${{ env.ARCHIVE_PATH }}/UnityFramework.xcframework
+            XCFRAMEWORK_PATH: ${{ env.ARCHIVE_PATH }}/${{ env.XCFRAMEWORK_NAME }}
             DEVICE_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Device.xcarchive
             SIMULATOR_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Simulator.xcarchive
 
@@ -160,12 +162,12 @@ jobs:
 
             # Perform code signing
             cd $ARCHIVE_PATH && \
-            codesign --timestamp -s "Apple" "UnityFramework.xcframework"
+            codesign --timestamp -s "Apple" "$XCFRAMEWORK_NAME"
         
         - name: zip XCFramework
           run: |
             cd $ARCHIVE_PATH && \
-            zip -r -9 $ARTIFACT_NAME UnityFramework.xcframework && \
+            zip -r -9 $ARTIFACT_NAME $XCFRAMEWORK_NAME && \
             mv -f $ARTIFACT_NAME ../$ARTIFACT_NAME
 
         - name: Compute checksum
