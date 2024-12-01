@@ -12,7 +12,11 @@ on:
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
+    inputs:
+        tag_name:
+          description: "The tag name for the release"
+          required: true
+          
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -178,8 +182,8 @@ jobs:
                 const { data: release } = await github.rest.repos.createRelease({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  tag_name: "v1.0.0",
-                  name: "UnityFramework v1.0.0",
+                  tag_name: "${{ github.event.inputs.tag_name }}",
+                  name: "UnityFramework ${{ github.event.inputs.tag_name }}",
                   body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
                   draft: false,
                   prerelease: false,
