@@ -25,7 +25,7 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
         with:
-          token: asdfasdf
+          token: ${{ secrets.PAT_GITHUB }}
           submodules: true
       
       - uses: game-ci/unity-builder@v4
