@@ -35,6 +35,11 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: iOS
+          unityVersion: 6000.0.28f1
+          projectPath: vendor
+          buildMethod: BuildScript.UniversaliOS
+
+        
       # Runs a single command using the runners shell
       - name: Run a one-line script
         run: echo Hello, world!
