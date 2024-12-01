@@ -27,7 +27,11 @@ jobs:
         with:
           token: ${{ secrets.PAT_GITHUB }}
           submodules: true
-      
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
       - uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -39,13 +43,47 @@ jobs:
           projectPath: vendor
           buildMethod: BuildScript.UniversaliOS
 
-        
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
-
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: Set up build environment
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+            export IOS_DEVICE_PROJECT_PATH="vendor/Build/iOS_Device"
+            export IOS_SIMULATOR_PROJECT_PATH="vendor/Build/iOS_Simulator"
+            export ARCHIVE_PATH="vendor/Build/archives"
+            export DEVICE_ARCHIVE_PATH="${ARCHIVE_PATH}/iOS_Device.xcarchive"
+            export SIMULATOR_ARCHIVE_PATH="${ARCHIVE_PATH}/iOS_Simulator.xcarchive"
+            export XCFRAMEWORK_NAME="UnityFramework.xcframework"
+            export XCFRAMEWORK_PATH="${ARCHIVE_PATH}/${XCFRAMEWORK_NAME}"
+
+      - name: Build UnityFramework for iOS Device
+        run: |
+          xcodebuild -project "${IOS_DEVICE_PROJECT_PATH}/Unity-iPhone.xcodeproj" \
+            -scheme UnityFramework \
+            -configuration Release \
+            -sdk iphoneos \
+            BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
+            -archivePath "${DEVICE_ARCHIVE_PATH}" \
+            SKIP_INSTALL=NO \
+            LLVM_LTO=YES \
+            archive
+
+      - name: Build UnityFramework for iOS Simulator
+        run: |
+          xcodebuild -project "${IOS_SIMULATOR_PROJECT_PATH}/Unity-iPhone.xcodeproj" \
+            -scheme UnityFramework \
+            -configuration Release \
+            -sdk iphonesimulator \
+            BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
+            -archivePath "${SIMULATOR_ARCHIVE_PATH}" \
+            SKIP_INSTALL=NO \
+            LLVM_LTO=YES \
+            archive
+
+      - name: Create XCFramework
+        run: |
+            xcodebuild -create-xcframework \
+            -archive "${DEVICE_ARCHIVE_PATH}" -framework UnityFramework.framework \
+            -archive "${SIMULATOR_ARCHIVE_PATH}" -framework UnityFramework.framework \
+            -output "${XCFRAMEWORK_PATH}"
+
+      - name: Verify XCFramework
+        run: |
+            ls -al "${XCFRAMEWORK_PATH}"
