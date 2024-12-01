@@ -29,14 +29,14 @@ jobs:
           lfs: true
 
       - name: Unity Library Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             vendor/Library
           key: iOS-Unity-Library
 
       - name: Unity Build Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             vendor/Build/iOS_Device
@@ -98,7 +98,7 @@ jobs:
             security list-keychain -d user -s $KEYCHAIN_PATH
 
         - name: Unity Build Cache
-          uses: actions/cache@v3
+          uses: actions/cache@v4
           with:
             path: |
               vendor/Build/iOS_Device
@@ -135,11 +135,6 @@ jobs:
             -archive "${DEVICE_ARCHIVE_PATH}" -framework UnityFramework.framework \
             -archive "${SIMULATOR_ARCHIVE_PATH}" -framework UnityFramework.framework \
             -output "${XCFRAMEWORK_PATH}"
-
-        - name: Code sign
-          run: |
-            cd vendor/Build/archives && \
-            codesign --timestamp -s "Apple" "UnityFramework.xcframework"
         
         - name: zip XCFramework
           run: |
@@ -162,6 +157,7 @@ jobs:
           id: create_release
           uses: actions/github-script@v7
           with:
+              github-token: ${{ secrets.GITHUB_TOKEN }}
               script: |
                 const { data: release } = await github.rest.repos.createRelease({
                   owner: context.repo.owner,
@@ -180,17 +176,17 @@ jobs:
           uses: actions/github-script@v7
           with:
               script: |
-                const fs = require('fs');
+                const fs = require('fs/promises');
                 const path = "vendor/Build/UnityFramework-iOS-Release.zip";
                 const { data: asset } = await github.rest.repos.uploadReleaseAsset({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   release_id: ${{ steps.create_release.outputs.release_id }},
                   name: "UnityFramework-iOS-Release.zip",
-                  data: fs.readFileSync(path),
+                  data: await fs.readFile(path),
                   headers: {
                     "content-type": "application/zip",
-                    "content-length": fs.statSync(path).size,
+                    "content-length": (await fs.stat(path)).size,
                   },
                 });
                 core.setOutput("asset_id", asset.id);
@@ -201,7 +197,7 @@ jobs:
             script: |
                 const release_id = ${{ steps.create_release.outputs.release_id }};
                 const asset_id = ${{ steps.upload_asset.outputs.asset_id }};
-                const checksum = process.env.CHECKSUM;
+                const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
     
                 await github.rest.repos.updateRelease({
                   owner: context.repo.owner,
