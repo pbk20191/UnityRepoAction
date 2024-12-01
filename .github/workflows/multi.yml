@@ -26,14 +26,22 @@ jobs:
         with:
           token: ${{ secrets.PAT_GITHUB }}
           submodules: true
+          lfs: true
 
-      - name: Restore cached build directory
+      - name: Unity Library Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            vendor/Library
+          key: iOS-Unity-Library
+
+      - name: Unity Build Cache
         uses: actions/cache@v3
         with:
           path: |
             vendor/Build/iOS_Device
             vendor/Build/iOS_Simulator
-          key: iOS-build-${{ github.sha }}
+          key: iOS-Unity-Build
 
       - uses: game-ci/unity-builder@v4
         env:
@@ -42,18 +50,10 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: iOS
-          unityVersion: 6000.0.28f1
+        #   unityVersion: 6000.0.28f1
           projectPath: vendor
           buildMethod: BuildScript.UniversaliOS
           customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
-
-      - name: Cache build directory
-        uses: actions/cache@v3
-        with:
-          path: |
-            vendor/Build/iOS_Device
-            vendor/Build/iOS_Simulator
-          key: iOS-build-${{ github.sha }}
 
   compile_project:
       runs-on: macOS-latest
@@ -97,13 +97,13 @@ jobs:
             security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
             security list-keychain -d user -s $KEYCHAIN_PATH
 
-        - name: Restore cached build directory
+        - name: Unity Build Cache
           uses: actions/cache@v3
           with:
             path: |
-                vendor/Build/iOS_Device
-                vendor/Build/iOS_Simulator
-            key: iOS-build-${{ github.sha }}
+              vendor/Build/iOS_Device
+              vendor/Build/iOS_Simulator
+            key: iOS-Unity-Build
 
         - name: Build UnityFramework for iOS Device
           run: |
