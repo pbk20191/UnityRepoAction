@@ -57,7 +57,7 @@ jobs:
 
   compile_project:
     # 2024-12-01 macos-14 only has 7GB of memory while macos-13 has double
-      runs-on: macOS-13
+      runs-on: macOS-14
       needs: build_project
       env:
         IOS_DEVICE_PROJECT_PATH: vendor/Build/iOS_Device
