@@ -59,7 +59,7 @@ jobs:
 
         - name: mk doo
           run: |
-            mkdir vendor/Build && \
+            mkdir -r vendor/Build && \
             echo -e "hello\nworld" >> vendor/Build/my.txt
 
         - name: Compute checksum
