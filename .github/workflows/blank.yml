@@ -35,6 +35,7 @@ jobs:
         with:
           token: ${{ secrets.PAT_GITHUB }}
           submodules: true
+          lfs: true
 
       - name: Install the Apple certificate and provisioning profile
         env:
@@ -65,6 +66,21 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Unity Library Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            vendor/Library
+          key: iOS-Unity-Library
+
+      - name: Unity Build Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            vendor/Build/iOS_Device
+            vendor/Build/iOS_Simulator
+          key: iOS-Unity-Build
+
       - uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -72,9 +88,10 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: iOS
-          unityVersion: 6000.0.28f1
+          unityVersion: 6000.0.29f1
           projectPath: vendor
           buildMethod: BuildScript.UniversaliOS
+          cacheUnityInstallationOnMac: true
 
       - name: Build UnityFramework for iOS Device
         run: |
