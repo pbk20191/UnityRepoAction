@@ -26,7 +26,15 @@ jobs:
         with:
           token: ${{ secrets.PAT_GITHUB }}
           submodules: true
-      
+
+      - name: Restore cached build directory
+        uses: actions/cache@v3
+        with:
+          path: |
+            vendor/Build/iOS_Device
+            vendor/Build/iOS_Simulator
+          key: iOS-build-${{ github.sha }}
+
       - uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -42,8 +50,10 @@ jobs:
       - name: Cache build directory
         uses: actions/cache@v3
         with:
-            path: vendor/Build
-            key: iOS-build-${{ github.sha }}
+          path: |
+            vendor/Build/iOS_Device
+            vendor/Build/iOS_Simulator
+          key: iOS-build-${{ github.sha }}
 
   compile_project:
       runs-on: macOS-latest
@@ -90,7 +100,9 @@ jobs:
         - name: Restore cached build directory
           uses: actions/cache@v3
           with:
-            path: Build
+            path: |
+                vendor/Build/iOS_Device
+                vendor/Build/iOS_Simulator
             key: iOS-build-${{ github.sha }}
 
         - name: Build UnityFramework for iOS Device
