@@ -59,13 +59,13 @@ jobs:
       runs-on: macOS-latest
       needs: build_project
       env:
-        IOS_DEVICE_PROJECT_PATH: Build/iOS_Device
-        IOS_SIMULATOR_PROJECT_PATH: Build/iOS_Simulator
-        ARCHIVE_PATH: Build/archives
-        DEVICE_ARCHIVE_PATH: Build/archives/iOS_Device.xcarchive
-        SIMULATOR_ARCHIVE_PATH: Build/archives/iOS_Simulator.xcarchive
+        IOS_DEVICE_PROJECT_PATH: vendor/Build/iOS_Device
+        IOS_SIMULATOR_PROJECT_PATH: vendor/Build/iOS_Simulator
+        ARCHIVE_PATH: vendor/Build/archives
+        DEVICE_ARCHIVE_PATH: vendor/Build/archives/iOS_Device.xcarchive
+        SIMULATOR_ARCHIVE_PATH: vendor/Build/archives/iOS_Simulator.xcarchive
         XCFRAMEWORK_NAME: UnityFramework.xcframework
-        XCFRAMEWORK_PATH: Build/archives/UnityFramework.xcframework
+        XCFRAMEWORK_PATH: vendor/Build/archives/UnityFramework.xcframework
       steps:
           
         - uses: maxim-lobanov/setup-xcode@v1
