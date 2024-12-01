@@ -61,7 +61,17 @@ jobs:
           run: |
             mkdir vendor && \
             mkdir vendor/Build && \
-            echo -e "hello\nworld" >> vendor/Build/my.txt
+            mkdir vendor/Build/archives && \
+            mkdir vendor/Build/archives/UnityFramework.xcframework && \
+            echo -e "hello\nworld" >> vendor/Build/archives/UnityFramework.xcframework/my.txt
+
+        - name: zip XCFramework
+          run: |
+            cd vendor/Build/archives && \
+            zip -r -9 UnityFramework-iOS-Release.zip UnityFramework.xcframework && \
+            mv -f UnityFramework-iOS-Release.zip ../UnityFramework-iOS-Release.zip
+        
+
 
         - name: Compute checksum
           id: compute_checksum
