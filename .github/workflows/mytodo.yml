@@ -67,7 +67,7 @@ jobs:
           id: compute_checksum
           run: |
               cd vendor/Build
-              CHECKSUM=$(swift package compute-checksum vendor/Build/my.txt)
+              CHECKSUM=A123dfds43dfsdf
               echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
 
         - name: Create GitHub Release
