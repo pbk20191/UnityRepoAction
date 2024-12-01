@@ -67,10 +67,8 @@ jobs:
         IOS_DEVICE_PROJECT_PATH: vendor/Build/iOS_Device
         IOS_SIMULATOR_PROJECT_PATH: vendor/Build/iOS_Simulator
         ARCHIVE_PATH: vendor/Build/archives
-        DEVICE_ARCHIVE_PATH: vendor/Build/archives/iOS_Device.xcarchive
-        SIMULATOR_ARCHIVE_PATH: vendor/Build/archives/iOS_Simulator.xcarchive
         XCFRAMEWORK_NAME: UnityFramework.xcframework
-        XCFRAMEWORK_PATH: vendor/Build/archives/UnityFramework.xcframework
+        ARTIFACT_NAME: UnityFramework-iOS-Release.zip
       steps:
           
         - uses: maxim-lobanov/setup-xcode@v1
@@ -121,6 +119,8 @@ jobs:
             SKIP_INSTALL=NO \
             LLVM_LTO=YES \
             archive
+          env:
+            DEVICE_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Device.xcarchive
 
         - name: Build UnityFramework for iOS Simulator
           run: |
@@ -133,6 +133,8 @@ jobs:
             SKIP_INSTALL=NO \
             LLVM_LTO=YES \
             archive
+          env:
+            SIMULATOR_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Simulator.xcarchive
 
         - name: Create XCFramework
           run: |
@@ -140,6 +142,10 @@ jobs:
             -archive "${DEVICE_ARCHIVE_PATH}" -framework UnityFramework.framework \
             -archive "${SIMULATOR_ARCHIVE_PATH}" -framework UnityFramework.framework \
             -output "${XCFRAMEWORK_PATH}"
+          env:
+            XCFRAMEWORK_PATH: ${{ env.ARCHIVE_PATH }}/UnityFramework.xcframework
+            DEVICE_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Device.xcarchive
+            SIMULATOR_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Simulator.xcarchive
 
         - name: Code sign
           run: |
@@ -153,24 +159,20 @@ jobs:
             echo "Using identity: $IDENTITY"
 
             # Perform code signing
-            cd vendor/Build/archives && \
+            cd $ARCHIVE_PATH && \
             codesign --timestamp -s "Apple" "UnityFramework.xcframework"
         
         - name: zip XCFramework
           run: |
-            cd vendor/Build/archives && \
-            zip -r -9 UnityFramework-iOS-Release.zip UnityFramework.xcframework && \
-            mv -f UnityFramework-iOS-Release.zip ../UnityFramework-iOS-Release.zip
-        
-        - name: Verify XCFramework
-          run: |
-            ls -al "vendor/Build/UnityFramework-iOS-Release.zip"
+            cd $ARCHIVE_PATH && \
+            zip -r -9 $ARTIFACT_NAME UnityFramework.xcframework && \
+            mv -f $ARTIFACT_NAME ../$ARTIFACT_NAME
 
         - name: Compute checksum
           id: compute_checksum
           run: |
               cd vendor/Build
-              CHECKSUM=$(swift package compute-checksum UnityFramework-iOS-Release.zip)
+              CHECKSUM=$(swift package compute-checksum $ARTIFACT_NAME)
               echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
 
         - name: Create GitHub Release
@@ -197,12 +199,12 @@ jobs:
           with:
               script: |
                 const fs = require('fs/promises');
-                const path = "vendor/Build/UnityFramework-iOS-Release.zip";
+                const path = "vendor/Build/${{ env.ARTIFACT_NAME }}";
                 const { data: asset } = await github.rest.repos.uploadReleaseAsset({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   release_id: ${{ steps.create_release.outputs.release_id }},
-                  name: "UnityFramework-iOS-Release.zip",
+                  name: "${{ env.ARTIFACT_NAME }}",
                   data: await fs.readFile(path),
                   headers: {
                     "content-type": "application/zip",
