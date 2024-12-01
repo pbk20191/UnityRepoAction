@@ -18,16 +18,13 @@ jobs:
   # This workflow contains a single job called "build"
   build:
     # The type of runner that the job will run on
-    runs-on: macOS-latest
+    runs-on: macos-latest
     env:
       IOS_DEVICE_PROJECT_PATH: vendor/Build/iOS_Device
       IOS_SIMULATOR_PROJECT_PATH: vendor/Build/iOS_Simulator
       ARCHIVE_PATH: vendor/Build/archives
-      DEVICE_ARCHIVE_PATH: vendor/Build/archives/iOS_Device.xcarchive
-      SIMULATOR_ARCHIVE_PATH: vendor/Build/archives/iOS_Simulator.xcarchive
       XCFRAMEWORK_NAME: UnityFramework.xcframework
-      XCFRAMEWORK_PATH: vendor/Build/archives/UnityFramework.xcframework
-      
+      ARTIFACT_NAME: UnityFramework-iOS-Release.zip
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -77,8 +74,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            vendor/Build/iOS_Device
-            vendor/Build/iOS_Simulator
+            ${{ env.IOS_DEVICE_PROJECT_PATH }}
+            ${{ env.IOS_SIMULATOR_PROJECT_PATH }}
           key: iOS-Unity-Build
 
       - uses: game-ci/unity-builder@v4
@@ -91,11 +88,11 @@ jobs:
           unityVersion: 6000.0.29f1
           projectPath: vendor
           buildMethod: BuildScript.UniversaliOS
-          # cacheUnityInstallationOnMac: true
+          cacheUnityInstallationOnMac: true
 
       - name: Build UnityFramework for iOS Device
         run: |
-          xcodebuild -project "${IOS_DEVICE_PROJECT_PATH}/Unity-iPhone.xcodeproj" \
+            xcodebuild -project "${IOS_DEVICE_PROJECT_PATH}/Unity-iPhone.xcodeproj" \
             -scheme UnityFramework \
             -configuration Release \
             -sdk iphoneos \
@@ -104,10 +101,12 @@ jobs:
             SKIP_INSTALL=NO \
             LLVM_LTO=YES \
             archive
+        env:
+            DEVICE_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Device.xcarchive
 
       - name: Build UnityFramework for iOS Simulator
         run: |
-          xcodebuild -project "${IOS_SIMULATOR_PROJECT_PATH}/Unity-iPhone.xcodeproj" \
+            xcodebuild -project "${IOS_SIMULATOR_PROJECT_PATH}/Unity-iPhone.xcodeproj" \
             -scheme UnityFramework \
             -configuration Release \
             -sdk iphonesimulator \
@@ -116,25 +115,97 @@ jobs:
             SKIP_INSTALL=NO \
             LLVM_LTO=YES \
             archive
+        env:
+            SIMULATOR_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Simulator.xcarchive
 
       - name: Create XCFramework
         run: |
-            xcodebuild -create-xcframework \
-            -archive "${DEVICE_ARCHIVE_PATH}" -framework UnityFramework.framework \
-            -archive "${SIMULATOR_ARCHIVE_PATH}" -framework UnityFramework.framework \
-            -output "${XCFRAMEWORK_PATH}"
+              xcodebuild -create-xcframework \
+              -archive "${DEVICE_ARCHIVE_PATH}" -framework UnityFramework.framework \
+              -archive "${SIMULATOR_ARCHIVE_PATH}" -framework UnityFramework.framework \
+              -output "${XCFRAMEWORK_PATH}"
+        env:
+              XCFRAMEWORK_PATH: ${{ env.ARCHIVE_PATH }}/${{ env.XCFRAMEWORK_NAME }}
+              DEVICE_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Device.xcarchive
+              SIMULATOR_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Simulator.xcarchive
 
       - name: Code sign
         run: |
-            cd vendor/Build/archives && \
-            codesign --timestamp -s "Apple" "UnityFramework.xcframework"
+          # Find available codesigning identities
+          IDENTITY=$(security find-identity -v -p codesigning | grep -oE '\".*\"' | sed 's/"//g' | head -n 1)
+          # Check if an identity is found
+          if [ -z "$IDENTITY" ]; then
+            echo "No valid code signing identity found."
+            exit 1
+          fi
+          echo "Using identity: $IDENTITY"
+
+          # Perform code signing
+          cd $ARCHIVE_PATH && \
+          codesign --timestamp -s "Apple" "$XCFRAMEWORK_NAME"
       
-      - name: zip XCFramework
+          - name: zip XCFramework
+          run: |
+            cd $ARCHIVE_PATH && \
+            zip -r -9 $ARTIFACT_NAME $XCFRAMEWORK_NAME && \
+            mv -f $ARTIFACT_NAME ../$ARTIFACT_NAME
+
+      - name: Compute checksum
+        id: compute_checksum
         run: |
-            cd vendor/Build/archives && \
-            zip -r -9 UnityFramework-iOS-Release.zip UnityFramework.xcframework && \
-            mv -f UnityFramework-iOS-Release.zip ../UnityFramework-iOS-Release.zip
-      
-      - name: Verify XCFramework
-        run: |
-            ls -al "vendor/Build/UnityFramework-iOS-Release.zip"
+            cd vendor/Build
+            CHECKSUM=$(swift package compute-checksum $ARTIFACT_NAME)
+            echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/github-script@v7
+        with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            script: |
+              const { data: release } = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: "${{ github.event.inputs.tag_name }}",
+                name: "UnityFramework ${{ github.event.inputs.tag_name }}",
+                body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
+                draft: false,
+                prerelease: false,
+              });
+              core.setOutput("release_id", release.id);
+              core.setOutput("upload_url", release.upload_url);
+  
+      - name: Upload Release Asset
+        id: upload_asset
+        uses: actions/github-script@v7
+        with:
+            script: |
+              const fs = require('fs/promises');
+              const path = "vendor/Build/${{ env.ARTIFACT_NAME }}";
+              const { data: asset } = await github.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: ${{ steps.create_release.outputs.release_id }},
+                name: "${{ env.ARTIFACT_NAME }}",
+                data: await fs.readFile(path),
+                headers: {
+                  "content-type": "application/zip",
+                  "content-length": (await fs.stat(path)).size,
+                },
+              });
+              core.setOutput("asset_id", asset.id);
+  
+      - name: Update Release with Asset ID
+        uses: actions/github-script@v7
+        with:
+          script: |
+              const release_id = ${{ steps.create_release.outputs.release_id }};
+              const asset_id = ${{ steps.upload_asset.outputs.asset_id }};
+              const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
+  
+              await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release_id,
+                body: `### UnityFramework iOS Release\n- **Checksum**: ${checksum}\n- **Asset ID**: ${asset_id}\n- **Download**: https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${release_id}`,
+              });

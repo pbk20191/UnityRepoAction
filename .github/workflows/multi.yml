@@ -65,7 +65,7 @@ jobs:
 
   compile_project:
     # 2024-12-01 macos-14 only has 7GB of memory while macos-13 has double
-      runs-on: macos-15
+      runs-on: macos-latest
       needs: build_project
       env:
         ARCHIVE_PATH: vendor/Build/archives
@@ -227,5 +227,5 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   release_id: release_id,
-                  body: `### UnityFramework iOS Release\n- **Checksum**: ${checksum}\n- **Asset ID**: ${asset_id}`,
+                  body: `### UnityFramework iOS Release\n- **Checksum**: ${checksum}\n- **Asset ID**: ${asset_id}\n- **Download**: https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${release_id}`,
                 });
