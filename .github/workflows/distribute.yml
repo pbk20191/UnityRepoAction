@@ -6,9 +6,9 @@ on:
   push:
     branches:
       - main
-    # paths:
-    #   - 'target'
-    #   - '.gitmodules'
+    paths:
+      - 'target'
+      - '.gitmodules'
   workflow_dispatch:
     inputs:
         tag_name:
@@ -78,7 +78,8 @@ jobs:
             Build/iOS
           key: iOS-Unity-Build
 
-      - uses: game-ci/unity-builder@v4
+      - name: Build iOS Device Project
+        uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -92,7 +93,8 @@ jobs:
           buildName: iOS_Device
           buildsPath: Build
 
-      - uses: game-ci/unity-builder@v4
+      - name: Build iOS Simulator Project
+        uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -290,8 +292,8 @@ jobs:
                 const release_id = ${{ steps.create_release.outputs.release_id }};
                 const asset_id = ${{ steps.upload_asset.outputs.asset_id }};
                 const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
-                const release_owner = ${{ needs.build_project.outputs.owner }}";
-                const release_repo = ${{ needs.build_project.outputs.repo }}";
+                const release_owner = "${{ needs.build_project.outputs.owner }}";
+                const release_repo = "${{ needs.build_project.outputs.repo }}";
                 await github.rest.repos.updateRelease({
                   owner: release_owner,
                   repo: release_repo,
