@@ -1,0 +1,37 @@
+name: Update Submodules Recursively
+
+on:
+    # schedule:
+    #     - cron: '0 0 * * *' # 매일 자정 실행
+    workflow_dispatch: # 수동 실행 트리거
+
+jobs:
+    main:
+        runs-on: ubuntu-latest
+
+        steps:
+            # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+            - uses: actions/checkout@v4
+              with:
+                token: ${{ secrets.PAT_GITHUB }}
+                submodules: recursive
+                lfs: true
+            
+            # - name: Update all submodules
+            #   run: |
+            #     git submodule update --remote --recursive
+
+            - name: Update target's project submodule
+              run: |
+                  cd target
+                  git submodule update --remote
+                  git add project
+                  git commit -m "Update project to latest commit" || echo "No changes to commit"
+                  git push
+
+
+            - name: Update target in pub
+              run: |
+                git add target
+                git commit -m "Update target to latest commit" || echo "No changes to commit"
+                git push origin
