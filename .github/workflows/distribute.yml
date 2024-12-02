@@ -105,8 +105,8 @@ jobs:
           customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
           buildName: iOS_Simulator
           buildsPath: Build
+          allowDirtyBuild: true
           customParameters: -simulatorBuild
-
 
   compile_project:
     # 2024-12-01 macos-14 only has 7GB of memory while macos-13 has double
