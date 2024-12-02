@@ -247,5 +247,5 @@ jobs:
                   body: `### UnityFramework iOS Release
                   - **Checksum**: ${checksum}
                   - **Asset ID**: ${asset_id}
-                  - **Download**: https://api.github.com/repos/TEAM-42KR/MafiaUnity-Binary/releases/assets/${release_id}`,
+                  - **Download**: https://api.github.com/repos/TEAM-42KR/MafiaUnity-Binary/releases/assets/${asset_id}`,
                 });
