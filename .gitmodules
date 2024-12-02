@@ -1,3 +1,3 @@
-[submodule "vendor"]
-	path = vendor
-	url = https://github.com/TEAM-42KR/MafiaUnity.git
+[submodule "target"]
+	path = target
+	url = git@github.com:TEAM-42KR/MafiaUnity-Binary.git
