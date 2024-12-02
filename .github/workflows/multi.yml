@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_GITHUB }}
-          submodules: true
+          submodules: recursive
           lfs: true
 
       - name: Unity Library Cache
@@ -53,7 +53,6 @@ jobs:
 
       - name: move Cache
         run: |
-          mkdir target/project/Build
           mv vendor/Library target/project/Library
           mv vendor/Build/iOS_Device target/project/Build/iOS_Device
           mv vendor/Build/iOS_Simulator target/project/Build/iOS_Simulator
