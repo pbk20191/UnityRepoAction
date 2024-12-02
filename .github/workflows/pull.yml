@@ -28,10 +28,19 @@ jobs:
                   git add project
                   git commit -m "Update project to latest commit" || echo "No changes to commit"
                   git push
-
+                  if git diff --staged --quiet; then
+                    echo "No changes to commit in project."
+                  else
+                    git commit -m "Update project to latest commit"
+                    git push
+                  fi
 
             - name: Update target in pub
               run: |
                 git add target
-                git commit -m "Update target to latest commit" || echo "No changes to commit"
-                git push origin
+                if git diff --staged --quiet; then
+                    echo "No changes to commit in target."
+                else
+                    git commit -m "Update target to latest commit"
+                    git push origin
+                fi
