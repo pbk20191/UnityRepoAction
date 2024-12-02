@@ -1,25 +1,28 @@
-# This is a basic workflow to help you get started with Actions
 
-name: multi_build
+name: Distribute UnityFramework
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-#   push:
-#     branches: [ "main" ]
-#   pull_request:
-#     branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+  push:
+    branches:
+      - main
+    # paths:
+    #   - 'target'
+    #   - '.gitmodules'
   workflow_dispatch:
     inputs:
         tag_name:
           description: "The tag name for the release"
           required: true
 
+concurrency:
+  group: workflow-${{ github.workflow }}
+  cancel-in-progress: true
+
 env:
-    IOS_DEVICE_PROJECT_PATH: vendor/Build/iOS_Device
-    IOS_SIMULATOR_PROJECT_PATH: vendor/Build/iOS_Simulator
+    IOS_DEVICE_PROJECT_PATH: Build/iOS_Device
+    IOS_SIMULATOR_PROJECT_PATH: Build/iOS_Simulator
+    LIBRARY_CACHE_PATH: target/project/Library
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -65,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            vendor/Library
+            ${{ env.LIBRARY_CACHE_PATH }}
           key: iOS-Unity-Library
 
       - name: Unity Build Cache
@@ -75,13 +78,6 @@ jobs:
             ${{ env.IOS_DEVICE_PROJECT_PATH }}
             ${{ env.IOS_SIMULATOR_PROJECT_PATH }}
           key: iOS-Unity-Build
-
-      - name: move Cache
-        run: |
-          mkdir target/project/Build
-          mv vendor/Library target/project/Library
-          mv vendor/Build/iOS_Device target/project/Build/iOS_Device
-          mv vendor/Build/iOS_Simulator target/project/Build/iOS_Simulator
 
       - uses: game-ci/unity-builder@v4
         env:
@@ -94,12 +90,21 @@ jobs:
           projectPath: target/project
           buildMethod: BuildScript.UniversaliOS
           customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
+          customParameters: -customBuildPath ${{ github.workspace }}/${{ env.IOS_DEVICE_PROJECT_PATH }}
 
-      - name: Move Cache Back
-        run: |
-          sudo mv target/project/Library vendor/Library
-          sudo mv target/project/Build/iOS_Device vendor/Build/iOS_Device
-          sudo mv target/project/Build/iOS_Simulator vendor/Build/iOS_Simulator
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: iOS
+        #   unityVersion: 6000.0.28f1
+          projectPath: target/project
+          buildMethod: BuildScript.UniversaliOS
+          customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
+          customParameters: -customBuildPath ${{ github.workspace }}/${{ env.IOS_SIMULATOR_PROJECT_PATH }} -simulatorBuild
+
 
   compile_project:
     # 2024-12-01 macos-14 only has 7GB of memory while macos-13 has double
@@ -196,11 +201,11 @@ jobs:
               echo "No valid code signing identity found."
               exit 1
             fi
-            echo "Using identity: $IDENTITY"
+            # echo "Using identity: $IDENTITY"
 
             # Perform code signing
             cd $ARCHIVE_PATH && \
-            codesign --timestamp -s "Apple" "$XCFRAMEWORK_NAME"
+            codesign --timestamp -s "$IDENTITY" "$XCFRAMEWORK_NAME"
         
         - name: zip XCFramework
           run: |
@@ -221,14 +226,30 @@ jobs:
           with:
               github-token: ${{ secrets.PAT_GITHUB }}
               script: |
+                const isWorkflowDispatch = "${{ github.event_name }}" === "workflow_dispatch";
+                let tag_name = isWorkflowDispatch ? "${{ github.event.inputs.tag_name }}" : null;
+
+                if (!isWorkflowDispatch) {
+                  // Generate timestamp-based tag in yyMMDD-HHMMSS format
+                  const now = new Date();
+                  const yy = String(now.getUTCFullYear()).slice(-2); // Last two digits of the year
+                  const MM = String(now.getUTCMonth() + 1).padStart(2, '0'); // Month (0-11, add 1)
+                  const DD = String(now.getUTCDate()).padStart(2, '0'); // Day of the month
+                  const HH = String(now.getUTCHours()).padStart(2, '0'); // Hours in UTC
+                  const mm = String(now.getUTCMinutes()).padStart(2, '0'); // Minutes in UTC
+                  const SS = String(now.getUTCSeconds()).padStart(2, '0'); // Seconds in UTC
+
+                  tag_name = `rel-${yy}${MM}${DD}-${HH}${mm}${SS}`;
+                  console.log(`Generated tag_name: ${tag_name}`);
+                }
                 const { data: release } = await github.rest.repos.createRelease({
                   owner: "${{ needs.build_project.outputs.owner }}",
                   repo: "${{ needs.build_project.outputs.repo }}",
                   tag_name: "${{ github.event.inputs.tag_name }}",
-                  name: "UnityFramework ${{ github.event.inputs.tag_name }}",
+                  name: "UnityFramework 2024",
                   body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
                   draft: true,
-                  prerelease: true,
+                  prerelease: false,
                 });
                 core.setOutput("release_id", release.id);
                 core.setOutput("upload_url", release.upload_url);
@@ -263,14 +284,15 @@ jobs:
                 const release_id = ${{ steps.create_release.outputs.release_id }};
                 const asset_id = ${{ steps.upload_asset.outputs.asset_id }};
                 const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
-    
+                const release_owner = ${{ needs.build_project.outputs.owner }}";
+                const release_repo = ${{ needs.build_project.outputs.repo }}";
                 await github.rest.repos.updateRelease({
-                  owner: "${{ needs.build_project.outputs.owner }}",
-                  repo: "${{ needs.build_project.outputs.repo }}",
+                  owner: release_owner,
+                  repo: release_repo,
                   release_id: release_id,
                   draft : false,
                   body: `### UnityFramework iOS Release
                   - **Checksum**: ${checksum}
                   - **Asset ID**: ${asset_id}
-                  - **Download**: https://api.github.com/repos/TEAM-42KR/MafiaUnity-Binary/releases/assets/${release_id}`,
+                  - **Download**: https://api.github.com/repos/${release_owner}/${release_repo}/releases/assets/${release_id}`,
                 });
