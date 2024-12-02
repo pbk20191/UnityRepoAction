@@ -20,6 +20,10 @@ jobs:
             # - name: Update all submodules
             #   run: |
             #     git submodule update --remote --recursive
+            - name: Configure commit info
+              run: |
+                git config --global user.name "Fetch Bot"
+                git config --global user.email "pbk20191@users.noreply.github.com"
 
             - name: Update target's project submodule
               run: |
