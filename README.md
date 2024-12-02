@@ -1,7 +1,7 @@
 
 
 
-###### github secrets
+# github secrets
 
 
 
@@ -10,7 +10,7 @@ PAT_GITHUB
 
 Personal Access Token to use
 
-# Unity Requirements
+### Unity Requirements
 
 https://game.ci/docs/github/activation
 
@@ -26,7 +26,7 @@ UNITY_EMAIL
 UNITY_PASSWORD
 
 
-# Apple requirements
+### Apple requirements
 
 https://docs.github.com/en/actions/use-cases-and-examples/deploying/installing-an-apple-certificate-on-macos-runners-for-xcode-development
 
