@@ -72,9 +72,9 @@ jobs:
 
       - name: Move Cache Back
         run: |
-          mv target/project/Library vendor/Library
-          mv target/project/Build/iOS_Device vendor/Build/iOS_Device
-          mv target/project/Build/iOS_Simulator vendor/Build/iOS_Simulator
+          sudo mv target/project/Library vendor/Library
+          sudo mv target/project/Build/iOS_Device vendor/Build/iOS_Device
+          sudo mv target/project/Build/iOS_Simulator vendor/Build/iOS_Simulator
 
   compile_project:
     # 2024-12-01 macos-14 only has 7GB of memory while macos-13 has double
@@ -116,7 +116,7 @@ jobs:
             security list-keychain -d user -s $KEYCHAIN_PATH
 
         - name: Unity Build Cache
-          uses: actions/cache@v4
+          uses: actions/cache/restore@v4
           with:
             path: |
                 ${{ env.IOS_DEVICE_PROJECT_PATH }}
