@@ -66,7 +66,7 @@ jobs:
         with:
           targetPlatform: iOS
         #   unityVersion: 6000.0.28f1
-          projectPath: vendor
+          projectPath: target/project
           buildMethod: BuildScript.UniversaliOS
           customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
 
