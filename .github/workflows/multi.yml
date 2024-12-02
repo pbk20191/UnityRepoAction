@@ -27,6 +27,9 @@ jobs:
   build_project:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    outputs:
+      owner: ${{ steps.submodule_info.outputs.owner }}
+      repo: ${{ steps.submodule_info.outputs.repo }}
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -35,6 +38,28 @@ jobs:
           token: ${{ secrets.PAT_GITHUB }}
           submodules: recursive
           lfs: true
+
+      - name: Get Submodule Info
+        id: submodule_info
+        run: |
+          # Extract the submodule URL from .gitmodules or Git config
+          SUBMODULE_URL=$(git config --file .gitmodules --get submodule.target.url)
+          echo "Submodule URL: $SUBMODULE_URL"
+
+          # Parse owner and repo from URL
+          if [[ "$SUBMODULE_URL" == git@* ]]; then
+            OWNER=$(echo "$SUBMODULE_URL" | sed -E 's/git@[^:]+:([^/]+)\/.*/\1/')
+            REPO=$(echo "$SUBMODULE_URL" | sed -E 's/git@[^:]+:[^/]+\/([^\.]+).git/\1/')
+          elif [[ "$SUBMODULE_URL" == https://* ]]; then
+            OWNER=$(echo "$SUBMODULE_URL" | sed -E 's|https://[^/]+/([^/]+)/.*|\1|')
+            REPO=$(echo "$SUBMODULE_URL" | sed -E 's|https://[^/]+/[^/]+/([^\.]+).git|\1|')
+          else
+            echo "Unknown URL format: $SUBMODULE_URL"
+            exit 1
+          fi
+
+          echo "owner=$OWNER" >> $GITHUB_OUTPUT
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
 
       - name: Unity Library Cache
         uses: actions/cache@v4
@@ -197,8 +222,8 @@ jobs:
               github-token: ${{ secrets.PAT_GITHUB }}
               script: |
                 const { data: release } = await github.rest.repos.createRelease({
-                  owner: "TEAM-42KR",
-                  repo: "MafiaUnity-Binary",
+                  owner: ${{ needs.build_project.outputs.owner }},
+                  repo: ${{ needs.build_project.outputs.repo }},
                   tag_name: "${{ github.event.inputs.tag_name }}",
                   name: "UnityFramework ${{ github.event.inputs.tag_name }}",
                   body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
@@ -218,8 +243,8 @@ jobs:
                 const fs = require('fs/promises');
                 const path = "vendor/Build/${{ env.ARTIFACT_NAME }}";
                 const { data: asset } = await github.rest.repos.uploadReleaseAsset({
-                  owner: "TEAM-42KR",
-                  repo: "MafiaUnity-Binary",
+                  owner: ${{ needs.build_project.outputs.owner }},
+                  repo: ${{ needs.build_project.outputs.repo }},
                   release_id: ${{ steps.create_release.outputs.release_id }},
                   name: "${{ env.ARTIFACT_NAME }}",
                   data: await fs.readFile(path),
@@ -240,12 +265,12 @@ jobs:
                 const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
     
                 await github.rest.repos.updateRelease({
-                  owner: "TEAM-42KR",
-                  repo: "MafiaUnity-Binary",
+                  owner: ${{ needs.build_project.outputs.owner }},
+                  repo: ${{ needs.build_project.outputs.repo }},
                   release_id: release_id,
                   draft : false,
                   body: `### UnityFramework iOS Release
                   - **Checksum**: ${checksum}
                   - **Asset ID**: ${asset_id}
-                  - **Download**: https://api.github.com/repos/TEAM-42KR/MafiaUnity-Binary/releases/assets/${asset_id}`,
+                  - **Download**: https://api.github.com/repos/TEAM-42KR/MafiaUnity-Binary/releases/assets/${release_id}`,
                 });
