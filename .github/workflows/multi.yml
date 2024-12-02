@@ -222,8 +222,8 @@ jobs:
               github-token: ${{ secrets.PAT_GITHUB }}
               script: |
                 const { data: release } = await github.rest.repos.createRelease({
-                  owner: ${{ needs.build_project.outputs.owner }},
-                  repo: ${{ needs.build_project.outputs.repo }},
+                  owner: "${{ needs.build_project.outputs.owner }}",
+                  repo: "${{ needs.build_project.outputs.repo }}",
                   tag_name: "${{ github.event.inputs.tag_name }}",
                   name: "UnityFramework ${{ github.event.inputs.tag_name }}",
                   body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
@@ -243,8 +243,8 @@ jobs:
                 const fs = require('fs/promises');
                 const path = "vendor/Build/${{ env.ARTIFACT_NAME }}";
                 const { data: asset } = await github.rest.repos.uploadReleaseAsset({
-                  owner: ${{ needs.build_project.outputs.owner }},
-                  repo: ${{ needs.build_project.outputs.repo }},
+                  owner: "${{ needs.build_project.outputs.owner }}",
+                  repo: "${{ needs.build_project.outputs.repo }}",
                   release_id: ${{ steps.create_release.outputs.release_id }},
                   name: "${{ env.ARTIFACT_NAME }}",
                   data: await fs.readFile(path),
@@ -265,8 +265,8 @@ jobs:
                 const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
     
                 await github.rest.repos.updateRelease({
-                  owner: ${{ needs.build_project.outputs.owner }},
-                  repo: ${{ needs.build_project.outputs.repo }},
+                  owner: "${{ needs.build_project.outputs.owner }}",
+                  repo: "${{ needs.build_project.outputs.repo }}",
                   release_id: release_id,
                   draft : false,
                   body: `### UnityFramework iOS Release
