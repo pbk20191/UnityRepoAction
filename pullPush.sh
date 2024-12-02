@@ -4,8 +4,9 @@ set -o pipefail
 git-lfs install
 
 git submodule update --init --recursive
-cd target
-git submodule update --remote project
+cd target/project
+git pull origin develop
+cd ..
 git add project
 if git diff --staged --quiet; then
     echo "No changes to commit in project."
