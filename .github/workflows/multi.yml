@@ -189,8 +189,8 @@ jobs:
                   tag_name: "${{ github.event.inputs.tag_name }}",
                   name: "UnityFramework ${{ github.event.inputs.tag_name }}",
                   body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
-                  draft: false,
-                  prerelease: false,
+                  draft: true,
+                  prerelease: true,
                 });
                 core.setOutput("release_id", release.id);
                 core.setOutput("upload_url", release.upload_url);
@@ -227,5 +227,9 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   release_id: release_id,
-                  body: `### UnityFramework iOS Release\n- **Checksum**: ${checksum}\n- **Asset ID**: ${asset_id}\n- **Download**: https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${release_id}`,
+                  draft : false,
+                  body: `### UnityFramework iOS Release
+                  - **Checksum**: ${checksum}
+                  - **Asset ID**: ${asset_id}
+                  - **Download**: https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${release_id}`,
                 });
