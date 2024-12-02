@@ -75,8 +75,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.IOS_DEVICE_PROJECT_PATH }}
-            ${{ env.IOS_SIMULATOR_PROJECT_PATH }}
+            Build/iOS
           key: iOS-Unity-Build
 
       - uses: game-ci/unity-builder@v4
@@ -104,7 +103,7 @@ jobs:
           projectPath: target/project
           buildMethod: BuildScript.UniversaliOS
           customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
-          buildName: iOS_Device
+          buildName: iOS_Simulator
           buildsPath: Build
           customParameters: -simulatorBuild
 
@@ -152,9 +151,13 @@ jobs:
           uses: actions/cache/restore@v4
           with:
             path: |
-                ${{ env.IOS_DEVICE_PROJECT_PATH }}
-                ${{ env.IOS_SIMULATOR_PROJECT_PATH }}
+                Build/iOS
             key: iOS-Unity-Build
+
+        - name: Move Project
+          run: |
+            mv Build/iOS/iOS_Device Build/iOS_Device
+            mv Build/iOS/iOS_Simulator Build/iOS_Simulator
 
         - name: Build UnityFramework for iOS Device
           run: |
