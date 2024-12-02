@@ -51,6 +51,12 @@ jobs:
             ${{ env.IOS_SIMULATOR_PROJECT_PATH }}
           key: iOS-Unity-Build
 
+      - name: move Cache
+        run: |
+          mv vendor/Library target/project/Library
+          mv vendor/Build/iOS_Device target/project/Build/iOS_Device
+          mv vendor/Build/iOS_Simulator target/project/Build/iOS_Simulator
+
       - uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -62,6 +68,12 @@ jobs:
           projectPath: vendor
           buildMethod: BuildScript.UniversaliOS
           customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
+
+      - name: Move Cache Back
+        run: |
+          mv target/project/Library vendor/Library
+          mv target/project/Build/iOS_Device vendor/Build/iOS_Device
+          mv target/project/Build/iOS_Simulator vendor/Build/iOS_Simulator
 
   compile_project:
     # 2024-12-01 macos-14 only has 7GB of memory while macos-13 has double
@@ -181,11 +193,11 @@ jobs:
           id: create_release
           uses: actions/github-script@v7
           with:
-              github-token: ${{ secrets.GITHUB_TOKEN }}
+              github-token: ${{ secrets.PAT_GITHUB }}
               script: |
                 const { data: release } = await github.rest.repos.createRelease({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
+                  owner: "TEAM-42KR",
+                  repo: "MafiaUnity-Binary",
                   tag_name: "${{ github.event.inputs.tag_name }}",
                   name: "UnityFramework ${{ github.event.inputs.tag_name }}",
                   body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
@@ -199,12 +211,14 @@ jobs:
           id: upload_asset
           uses: actions/github-script@v7
           with:
+              github-token: ${{ secrets.PAT_GITHUB }}
+
               script: |
                 const fs = require('fs/promises');
                 const path = "vendor/Build/${{ env.ARTIFACT_NAME }}";
                 const { data: asset } = await github.rest.repos.uploadReleaseAsset({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
+                  owner: "TEAM-42KR",
+                  repo: "MafiaUnity-Binary",
                   release_id: ${{ steps.create_release.outputs.release_id }},
                   name: "${{ env.ARTIFACT_NAME }}",
                   data: await fs.readFile(path),
@@ -218,18 +232,19 @@ jobs:
         - name: Update Release with Asset ID
           uses: actions/github-script@v7
           with:
+            github-token: ${{ secrets.PAT_GITHUB }}
             script: |
                 const release_id = ${{ steps.create_release.outputs.release_id }};
                 const asset_id = ${{ steps.upload_asset.outputs.asset_id }};
                 const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
     
                 await github.rest.repos.updateRelease({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
+                  owner: "TEAM-42KR",
+                  repo: "MafiaUnity-Binary",
                   release_id: release_id,
                   draft : false,
                   body: `### UnityFramework iOS Release
                   - **Checksum**: ${checksum}
                   - **Asset ID**: ${asset_id}
-                  - **Download**: https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${release_id}`,
+                  - **Download**: https://api.github.com/repos/TEAM-42KR/MafiaUnity-Binary/releases/assets/${release_id}`,
                 });
