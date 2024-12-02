@@ -29,12 +29,11 @@ jobs:
               run: |
                   cd target
                   git add project
-                  git push
                   if git diff --staged --quiet; then
                     echo "No changes to commit in project."
                   else
                     git commit -m "Update project to latest commit"
-                    git push
+                    git push origin:main
                   fi
 
             - name: Update target in pub
@@ -44,5 +43,5 @@ jobs:
                     echo "No changes to commit in target."
                 else
                     git commit -m "Update target to latest commit"
-                    git push origin
+                    git push origin:main
                 fi
