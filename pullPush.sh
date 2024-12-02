@@ -12,13 +12,13 @@ if git diff --staged --quiet; then
     echo "No changes to commit in project."
 else
     git commit -m "Update project to latest commit"
-    git push
 fi
+git push
 cd ..
 git add target
 if git diff --staged --quiet; then
     echo "No changes to commit in target."
 else
     git commit -m "Update target to latest commit"
-    git push origin:main
 fi
+git push
