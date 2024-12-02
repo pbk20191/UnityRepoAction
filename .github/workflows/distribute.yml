@@ -189,7 +189,7 @@ jobs:
             SKIP_INSTALL=NO \
             LLVM_LTO=YES \
             archive
-            xcodebuild -project "${SIMULATOR_ARCHIVE_PATH}/Unity-iPhone.xcodeproj" \
+            xcodebuild -project "${IOS_SIMULATOR_PROJECT_PATH}/Unity-iPhone.xcodeproj" \
             -scheme UnityFramework \
             clean
           env:
