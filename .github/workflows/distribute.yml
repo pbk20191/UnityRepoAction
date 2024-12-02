@@ -172,6 +172,9 @@ jobs:
             SKIP_INSTALL=NO \
             LLVM_LTO=YES \
             archive
+            xcodebuild -project "${IOS_DEVICE_PROJECT_PATH}/Unity-iPhone.xcodeproj" \
+            -scheme UnityFramework \
+            clean
           env:
             DEVICE_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Device.xcarchive
 
@@ -186,6 +189,9 @@ jobs:
             SKIP_INSTALL=NO \
             LLVM_LTO=YES \
             archive
+            xcodebuild -project "${SIMULATOR_ARCHIVE_PATH}/Unity-iPhone.xcodeproj" \
+            -scheme UnityFramework \
+            clean
           env:
             SIMULATOR_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Simulator.xcarchive
 
@@ -253,7 +259,7 @@ jobs:
                 const { data: release } = await github.rest.repos.createRelease({
                   owner: "${{ needs.build_project.outputs.owner }}",
                   repo: "${{ needs.build_project.outputs.repo }}",
-                  tag_name: "${{ github.event.inputs.tag_name }}",
+                  tag_name: tag_name,
                   name: "UnityFramework 2024",
                   body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
                   draft: true,
@@ -302,5 +308,5 @@ jobs:
                   body: `### UnityFramework iOS Release
                   - **Checksum**: ${checksum}
                   - **Asset ID**: ${asset_id}
-                  - **Download**: https://api.github.com/repos/${release_owner}/${release_repo}/releases/assets/${release_id}`,
+                  - **Download**: https://api.github.com/repos/${release_owner}/${release_repo}/releases/assets/${asset_id}`,
                 });

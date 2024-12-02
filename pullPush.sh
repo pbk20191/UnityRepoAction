@@ -4,6 +4,9 @@ set -o pipefail
 git-lfs install
 
 git submodule update --init --recursive
+cd target
+git checkout main
+git pull origin main
 cd target/project
 git pull origin develop
 cd ..
