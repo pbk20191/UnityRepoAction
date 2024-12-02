@@ -90,7 +90,8 @@ jobs:
           projectPath: target/project
           buildMethod: BuildScript.UniversaliOS
           customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
-          customParameters: -customBuildPath /github/workspace/${{ env.IOS_DEVICE_PROJECT_PATH }}
+          buildName: iOS_Device
+          buildsPath: Build
 
       - uses: game-ci/unity-builder@v4
         env:
@@ -103,7 +104,9 @@ jobs:
           projectPath: target/project
           buildMethod: BuildScript.UniversaliOS
           customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
-          customParameters: -customBuildPath /github/workspace/${{ env.IOS_SIMULATOR_PROJECT_PATH }} -simulatorBuild
+          buildName: iOS_Device
+          buildsPath: Build
+          customParameters: -simulatorBuild
 
 
   compile_project:
