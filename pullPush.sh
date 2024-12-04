@@ -7,7 +7,7 @@ git submodule update --init --recursive
 cd target
 git checkout main
 git pull origin main
-cd target/project
+cd project
 git pull origin develop
 cd ..
 git add project
