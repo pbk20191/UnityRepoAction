@@ -43,6 +43,14 @@ jobs:
           submodules: recursive
           lfs: true
 
+      - name: Get submodule commit hash
+        id: get-commit-hash
+        run: |
+          # 서브모듈 커밋 해시 가져오기
+          SUBMODULE_COMMIT=$(cd target/project && git rev-parse HEAD)
+          echo "Submodule Commit: $SUBMODULE_COMMIT"
+          echo "submodule-commit=$SUBMODULE_COMMIT" >> $GITHUB_OUTPUT
+
       - name: Get Submodule Info
         id: submodule_info
         run: |
@@ -71,14 +79,6 @@ jobs:
           path: |
             ${{ env.LIBRARY_CACHE_PATH }}
           key: iOS-Unity-Library
-
-      - name: Get submodule commit hash
-        id: get-commit-hash
-        run: |
-          # 서브모듈 커밋 해시 가져오기
-          SUBMODULE_COMMIT=$(cd target/project && git rev-parse HEAD)
-          echo "Submodule Commit: $SUBMODULE_COMMIT"
-          echo "submodule-commit=$SUBMODULE_COMMIT" >> $GITHUB_ENV
   
       - name: Unity Build Cache
         uses: actions/cache@v4
