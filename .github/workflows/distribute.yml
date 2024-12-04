@@ -139,6 +139,7 @@ jobs:
             else
               echo "Cache remains the same."
               echo "changed=false" >> $GITHUB_OUTPUT
+            fi
   
       - name: Save Unity Build Cache
         if: ${{ steps.check-cache.outputs.changed == 'true' }}
