@@ -33,6 +33,7 @@ jobs:
     outputs:
       owner: ${{ steps.submodule_info.outputs.owner }}
       repo: ${{ steps.submodule_info.outputs.repo }}
+      submodule-commit: ${{ steps.get-commit-hash.outputs.submodule-commit }}
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -71,22 +72,22 @@ jobs:
             ${{ env.LIBRARY_CACHE_PATH }}
           key: iOS-Unity-Library
 
-      - name: Restore Unity Build Cache
-        uses: actions/cache/restore@v4
+      - name: Get submodule commit hash
+        id: get-commit-hash
+        run: |
+          # 서브모듈 커밋 해시 가져오기
+          SUBMODULE_COMMIT=$(cd target/project && git rev-parse HEAD)
+          echo "Submodule Commit: $SUBMODULE_COMMIT"
+          echo "submodule-commit=$SUBMODULE_COMMIT" >> $GITHUB_ENV
+  
+      - name: Unity Build Cache
+        uses: actions/cache@v4
         with:
           path: |
             Build/iOS
-          key: iOS-Unity-Build
-
-      - name: Prepare for Cache Check
-        run: |
-          # 캐시 미스일 경우 Build/iOS 디렉터리 생성
-          mkdir -p Build/iOS
-          
-          # 캐시 복원 후 초기 해시 계산
-          INITIAL_HASH=$(find Build/iOS -type f -exec sha256sum {} \; | sort | sha256sum | awk '{print $1}')
-          echo $INITIAL_HASH > Build/iOS/.initial_hash
-          echo "Initial Hash: $INITIAL_HASH"
+          key: iOS-Unity-Build-${{ steps.get-commit-hash.outputs.submodule-commit }}
+          restore-keys: |
+            iOS-Unity-Build
 
       - name: Build iOS Device Project
         uses: game-ci/unity-builder@v4
@@ -119,35 +120,6 @@ jobs:
           buildsPath: Build
           allowDirtyBuild: true
           customParameters: -simulatorBuild
-
-      - name: Check for Cache Changes
-        id: check-cache
-        run: |
-            # 초기 해시 로드
-            INITIAL_HASH=$(cat Build/iOS/.initial_hash || echo "")
-            
-            # 빌드 후 새로운 해시 계산
-            NEW_HASH=$(find Build/iOS -type f -exec sha256sum {} \; | sort | sha256sum | awk '{print $1}')
-            
-            echo "Initial Hash: $INITIAL_HASH"
-            echo "New Hash: $NEW_HASH"
-  
-            # 해시 비교
-            if [ "$INITIAL_HASH" != "$NEW_HASH" ]; then
-              echo "Cache has changed."
-              echo "changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "Cache remains the same."
-              echo "changed=false" >> $GITHUB_OUTPUT
-            fi
-  
-      - name: Save Unity Build Cache
-        if: ${{ steps.check-cache.outputs.changed == 'true' }}
-        uses: actions/cache/save@v4
-        with:
-          path: |
-              Build/iOS
-          key: iOS-Unity-Build
 
   compile_project:
     # 2024-12-01 macos-14 only has 7GB of memory while macos-13 has double
@@ -193,7 +165,7 @@ jobs:
           with:
             path: |
                 Build/iOS
-            key: iOS-Unity-Build
+            key: iOS-Unity-Build-${{ needs.build_project.outputs.submodule-commit }}
 
         - name: Move Project
           run: |
