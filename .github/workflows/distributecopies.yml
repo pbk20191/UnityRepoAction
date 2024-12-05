@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_GITHUB }}
-          repository: https://github.com/TEAM-42KR/MafiaUnity-Binary.git
+          repository: TEAM-42KR/MafiaUnity-Binary
           submodules: recursive
           lfs: true
           ref: 89fe7eec734731a5b41c627d6f688120a83d356e
