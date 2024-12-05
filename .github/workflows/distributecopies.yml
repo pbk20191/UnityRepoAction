@@ -1,0 +1,293 @@
+
+name: Distribute UnityFramework22
+
+# Controls when the workflow will run
+on:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'project'
+  #     - '.gitmodules'
+  workflow_dispatch:
+    inputs:
+        tag_name:
+          description: "The tag name for the release"
+          required: true
+
+concurrency:
+  group: workflow-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+    IOS_DEVICE_PROJECT_PATH: Build/iOS/iOS_Device
+    IOS_SIMULATOR_PROJECT_PATH: Build/iOS/iOS_Simulator
+    LIBRARY_CACHE_PATH: project/Library
+
+permissions:
+  contents: write
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build_project:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    outputs:
+      submodule-commit: ${{ steps.get-commit-hash.outputs.submodule-commit }}
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_GITHUB }}
+          repository: https://github.com/TEAM-42KR/MafiaUnity-Binary.git
+          submodules: recursive
+          lfs: true
+          ref: 89fe7eec734731a5b41c627d6f688120a83d356e
+
+      - name: Get submodule commit hash
+        id: get-commit-hash
+        run: |
+          # 서브모듈 커밋 해시 가져오기
+          SUBMODULE_COMMIT=$(cd project && git rev-parse HEAD)
+          echo "Submodule Commit: $SUBMODULE_COMMIT"
+          echo "submodule-commit=$SUBMODULE_COMMIT" >> $GITHUB_OUTPUT
+
+      - name: Unity Library Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.LIBRARY_CACHE_PATH }}
+          key: iOS-Unity-Library
+  
+      - name: Unity Build Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            Build/iOS
+          key: iOS-Unity-Build-${{ steps.get-commit-hash.outputs.submodule-commit }}
+          restore-keys: |
+            iOS-Unity-Build
+
+      - name: Build iOS Device Project
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: iOS
+        #   unityVersion: 6000.0.28f1
+          projectPath: project
+          buildMethod: BuildScript.UniversaliOS
+          customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
+          buildName: iOS_Device
+          buildsPath: Build
+
+      - name: Build iOS Simulator Project
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: iOS
+        #   unityVersion: 6000.0.28f1
+          projectPath: project
+          buildMethod: BuildScript.UniversaliOS
+          customImage: 'unityci/editor:6000.0.29f1-ios-3.1'
+          buildName: iOS_Simulator
+          buildsPath: Build
+          allowDirtyBuild: true
+          customParameters: -simulatorBuild
+
+  compile_project:
+    # 2024-12-01 macos-14 only has 7GB of memory while macos-13 has double
+      runs-on: macos-latest
+      needs: build_project
+      env:
+        ARCHIVE_PATH: Build/archives
+        XCFRAMEWORK_NAME: UnityFramework.xcframework
+        ARTIFACT_NAME: UnityFramework-iOS-Release.zip
+      steps:
+          
+        - uses: maxim-lobanov/setup-xcode@v1
+          with:
+            xcode-version: latest-stable
+
+        - name: Install the Apple certificate and provisioning profile
+          env:
+            BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+            P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+            KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          run: |
+            # create variables
+            CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+            PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+            KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+            # import certificate and provisioning profile from secrets
+            echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+            echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+
+            # create temporary keychain
+            security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+            security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+            # import certificate to keychain
+            security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+            security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+            security list-keychain -d user -s $KEYCHAIN_PATH
+
+        - name: Unity Build Cache
+          uses: actions/cache/restore@v4
+          with:
+            path: |
+                Build/iOS
+            key: iOS-Unity-Build-${{ needs.build_project.outputs.submodule-commit }}
+
+        - name: Build UnityFramework for iOS Device
+          run: |
+            xcodebuild -project "${{ env.IOS_DEVICE_PROJECT_PATH }}/Unity-iPhone.xcodeproj" \
+            -scheme UnityFramework \
+            -configuration Release \
+            -sdk iphoneos \
+            BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
+            -archivePath "${{ env.DEVICE_ARCHIVE_PATH }}" \
+            SKIP_INSTALL=NO \
+            LLVM_LTO=YES \
+            archive clean
+          env:
+            DEVICE_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Device.xcarchive
+
+        - name: Build UnityFramework for iOS Simulator
+          run: |
+            xcodebuild -project "${{ env.IOS_SIMULATOR_PROJECT_PATH }}/Unity-iPhone.xcodeproj" \
+            -scheme UnityFramework \
+            -configuration Release \
+            -sdk iphonesimulator \
+            BUILD_LIBRARIES_FOR_DISTRIBUTION=YES \
+            -archivePath "${{ env.SIMULATOR_ARCHIVE_PATH }}" \
+            SKIP_INSTALL=NO \
+            LLVM_LTO=YES \
+            archive clean
+          env:
+            SIMULATOR_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Simulator.xcarchive
+
+        - name: Create XCFramework
+          run: |
+            xcodebuild -create-xcframework \
+            -archive "${{ env.DEVICE_ARCHIVE_PATH }}" -framework UnityFramework.framework \
+            -archive "${{ env.SIMULATOR_ARCHIVE_PATH }}" -framework UnityFramework.framework \
+            -output "${{ env.XCFRAMEWORK_PATH }}"
+          env:
+            XCFRAMEWORK_PATH: ${{ env.ARCHIVE_PATH }}/${{ env.XCFRAMEWORK_NAME }}
+            DEVICE_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Device.xcarchive
+            SIMULATOR_ARCHIVE_PATH: ${{ env.ARCHIVE_PATH }}/iOS_Simulator.xcarchive
+
+        - name: Code sign
+          run: |
+            # Find available codesigning identities
+            IDENTITY=$(security find-identity -v -p codesigning | grep -oE '\".*\"' | sed 's/"//g' | head -n 1)
+            # Check if an identity is found
+            if [ -z "$IDENTITY" ]; then
+              echo "No valid code signing identity found."
+              exit 1
+            fi
+            # echo "Using identity: $IDENTITY"
+
+            # Perform code signing
+            cd $ARCHIVE_PATH && \
+            codesign --timestamp -s "$IDENTITY" "${{ env.XCFRAMEWORK_NAME }}"
+        
+        - name: zip XCFramework
+          run: |
+            cd $ARCHIVE_PATH && \
+            zip -r -9 ${{ env.ARTIFACT_NAME }} ${{ env.XCFRAMEWORK_NAME }} && \
+            mv -f ${{ env.ARTIFACT_NAME }} ../${{ env.ARTIFACT_NAME }}
+
+        - name: Compute checksum
+          id: compute_checksum
+          run: |
+              cd Build
+              CHECKSUM=$(swift package compute-checksum ${{ env.ARTIFACT_NAME }})
+              echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+
+        - name: Create GitHub Release
+          id: create_release
+          uses: actions/github-script@v7
+          with:
+              github-token: ${{ secrets.PAT_GITHUB }}
+
+              script: |
+                const isWorkflowDispatch = "${{ github.event_name }}" === "workflow_dispatch";
+                let tag_name = isWorkflowDispatch ? "${{ github.event.inputs.tag_name }}" : null;
+
+                if (!isWorkflowDispatch) {
+                  // Generate timestamp-based tag in yyMMDD-HHMMSS format
+                  const now = new Date();
+                  const yy = String(now.getUTCFullYear()).slice(-2); // Last two digits of the year
+                  const MM = String(now.getUTCMonth() + 1).padStart(2, '0'); // Month (0-11, add 1)
+                  const DD = String(now.getUTCDate()).padStart(2, '0'); // Day of the month
+                  const HH = String(now.getUTCHours()).padStart(2, '0'); // Hours in UTC
+                  const mm = String(now.getUTCMinutes()).padStart(2, '0'); // Minutes in UTC
+                  const SS = String(now.getUTCSeconds()).padStart(2, '0'); // Seconds in UTC
+
+                  tag_name = `rel-${yy}${MM}${DD}-${HH}${mm}${SS}`;
+                  console.log(`Generated tag_name: ${tag_name}`);
+                }
+                const { data: release } = await github.rest.repos.createRelease({
+                  owner: "TEAM-42KR",
+                  repo: "MafiaUnity-Binary",
+                  tag_name: tag_name,
+                  name: "UnityFramework 2024",
+                  body: "### UnityFramework iOS Release\n- **Checksum**: ${{ steps.compute_checksum.outputs.checksum }}",
+                  draft: true,
+                  prerelease: false,
+                });
+                core.setOutput("release_id", release.id);
+                core.setOutput("upload_url", release.upload_url);
+    
+        - name: Upload Release Asset
+          id: upload_asset
+          uses: actions/github-script@v7
+          with:
+              github-token: ${{ secrets.PAT_GITHUB }}
+              script: |
+                const fs = require('fs/promises');
+                const path = "Build/${{ env.ARTIFACT_NAME }}";
+                const { data: asset } = await github.rest.repos.uploadReleaseAsset({
+                  owner: "TEAM-42KR",
+                  repo: "MafiaUnity-Binary",
+                  release_id: ${{ steps.create_release.outputs.release_id }},
+                  name: "${{ env.ARTIFACT_NAME }}",
+                  data: await fs.readFile(path),
+                  headers: {
+                    "content-type": "application/zip",
+                    "content-length": (await fs.stat(path)).size,
+                  },
+                });
+                core.setOutput("asset_id", asset.id);
+    
+        - name: Update Release with Asset ID
+          uses: actions/github-script@v7
+          with:
+            github-token: ${{ secrets.PAT_GITHUB }}
+            script: |
+                const release_id = ${{ steps.create_release.outputs.release_id }};
+                const asset_id = ${{ steps.upload_asset.outputs.asset_id }};
+                const checksum = "${{ steps.compute_checksum.outputs.checksum }}";
+                const release_owner = "TEAM-42KR";
+                const release_repo = "MafiaUnity-Binary";
+                await github.rest.repos.updateRelease({
+                  owner: release_owner,
+                  repo: release_repo,
+                  release_id: release_id,
+                  draft : false,
+                  body: `### UnityFramework iOS Release
+                  - **Checksum**: ${checksum}
+                  - **Asset ID**: ${asset_id}
+                  - **Download**: https://api.github.com/repos/${release_owner}/${release_repo}/releases/assets/${asset_id}`,
+                });
